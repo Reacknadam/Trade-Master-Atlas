@@ -1,45 +1,48 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { INITIAL_TOKENS } from '../constants';
-
-const TOKEN_STORAGE_KEY = 'atlas-trader-tokens';
+import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { useAuth } from '../context/AuthContext';
 
 export const useTokenManager = () => {
-  const [tokens, setTokens] = useState<number>(INITIAL_TOKENS);
+    const { currentUser } = useAuth();
+    const [tokens, setTokens] = useState<number>(0);
 
-  useEffect(() => {
-    try {
-      const storedTokens = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (storedTokens !== null) {
-        setTokens(parseInt(storedTokens, 10));
-      } else {
-        localStorage.setItem(TOKEN_STORAGE_KEY, String(INITIAL_TOKENS));
-      }
-    } catch (error) {
-      console.error("Failed to read from localStorage", error);
-    }
-  }, []);
+    useEffect(() => {
+        if (!currentUser) return;
 
-  const updateTokens = useCallback((newTokens: number) => {
-    setTokens(newTokens);
-    try {
-      localStorage.setItem(TOKEN_STORAGE_KEY, String(newTokens));
-    } catch (error) {
-      console.error("Failed to write to localStorage", error);
-    }
-  }, []);
+        const userDocRef = doc(db, 'users', currentUser.uid);
 
-  const spendTokens = useCallback((amount: number): boolean => {
-    if (tokens >= amount) {
-      updateTokens(tokens - amount);
-      return true;
-    }
-    return false;
-  }, [tokens, updateTokens]);
+        const unsubscribe = onSnapshot(userDocRef, (doc) => {
+            if (doc.exists()) {
+                setTokens(doc.data().tokens);
+            } else {
+                console.error("User document does not exist!");
+            }
+        });
 
-  const addTokens = useCallback((amount: number) => {
-    updateTokens(tokens + amount);
-  }, [tokens, updateTokens]);
+        return () => unsubscribe();
+    }, [currentUser]);
 
-  return { tokens, spendTokens, addTokens };
+    const updateTokensInDb = useCallback(async (newTokens: number) => {
+        if (!currentUser) return;
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        await updateDoc(userDocRef, { tokens: newTokens });
+    }, [currentUser]);
+
+    const spendTokens = useCallback(async (amount: number): Promise<boolean> => {
+        if (tokens >= amount) {
+            const newTokens = tokens - amount;
+            await updateTokensInDb(newTokens);
+            return true;
+        }
+        return false;
+    }, [tokens, updateTokensInDb]);
+
+    const addTokens = useCallback(async (amount: number) => {
+        const newTokens = tokens + amount;
+        await updateTokensInDb(newTokens);
+    }, [tokens, updateTokensInDb]);
+
+    return { tokens, spendTokens, addTokens };
 };
