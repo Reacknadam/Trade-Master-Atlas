@@ -2,6 +2,7 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { MarketDataPoint } from '../types';
+import '../styles/MarketChart.css';
 
 interface MarketChartProps {
     data: MarketDataPoint[];
@@ -11,11 +12,11 @@ interface MarketChartProps {
 const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-gray-700 p-3 rounded-lg border border-gray-600 shadow-lg">
-                <p className="label text-sm text-gray-300">{`Date : ${label}`}</p>
-                <p className="intro text-cyan-400">{`Prix : ${payload[0].value.toFixed(2)} USD`}</p>
-                 {payload[0].payload.rsi && <p className="text-sm text-purple-400">{`RSI : ${payload[0].payload.rsi}`}</p>}
-                {payload[0].payload.sma50 && <p className="text-sm text-orange-400">{`SMA50 : ${payload[0].payload.sma50}`}</p>}
+            <div className="custom-tooltip">
+                <p className="tooltip-label">{`Date : ${label}`}</p>
+                <p className="tooltip-price">{`Prix : ${payload[0].value.toFixed(2)} USD`}</p>
+                 {payload[0].payload.rsi && <p className="tooltip-label">{`RSI : ${payload[0].payload.rsi}`}</p>}
+                {payload[0].payload.sma50 && <p className="tooltip-label">{`SMA50 : ${payload[0].payload.sma50}`}</p>}
             </div>
         );
     }
@@ -25,20 +26,20 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
 const MarketChart: React.FC<MarketChartProps> = ({ data, isLoading }) => {
     if (isLoading) {
         return (
-            <div className="flex-1 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-cyan-500"></div>
+            <div className="loading-container">
+                <div className="spinner"></div>
             </div>
         );
     }
     
     if (!data || data.length === 0) {
-        return <div className="flex-1 flex items-center justify-center text-gray-500">Aucune donnée à afficher.</div>
+        return <div className="no-data-text">Aucune donnée à afficher.</div>
     }
 
     return (
-        <div className="w-full h-full flex flex-col">
-          <div className="text-lg font-semibold text-gray-200 mb-4">Graphique des Prix</div>
-            <div className="flex-1 w-full h-2/3">
+        <div className="market-chart-container">
+          <div className="chart-title">Graphique des Prix</div>
+            <div className="chart-wrapper">
                 <ResponsiveContainer>
                     <LineChart data={data}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#2C2C2C" />
@@ -51,8 +52,8 @@ const MarketChart: React.FC<MarketChartProps> = ({ data, isLoading }) => {
                     </LineChart>
                 </ResponsiveContainer>
             </div>
-             <div className="text-lg font-semibold text-gray-200 my-4">Volume</div>
-            <div className="flex-1 w-full h-1/3 mt-4">
+             <div className="chart-title">Volume</div>
+            <div className="volume-wrapper">
                  <ResponsiveContainer>
                     <BarChart data={data}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#2C2C2C" />

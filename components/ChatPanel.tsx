@@ -3,23 +3,22 @@ import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
 import { SendIcon, ChartIcon, LightbulbIcon } from './icons';
 import { marked } from 'marked';
+import '../styles/ChatPanel.css';
 
 const ChatBubble: React.FC<{ message: ChatMessage }> = ({ message }) => {
     const isUser = message.sender === 'user';
-    const bubbleClass = isUser
-        ? 'bg-cyan-600 self-end'
-        : 'bg-gray-700 self-start';
+    const bubbleClass = isUser ? 'chat-bubble user' : 'chat-bubble ai';
         
     const textContent = message.isLoading
-      ? <div className="flex items-center justify-center space-x-2">
-          <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse"></div>
-          <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse [animation-delay:0.2s]"></div>
-          <div className="w-2 h-2 rounded-full bg-gray-400 animate-pulse [animation-delay:0.4s]"></div>
+      ? <div className="loading-dots">
+          <div className="dot"></div>
+          <div className="dot"></div>
+          <div className="dot"></div>
         </div>
-      : <div className="prose prose-sm prose-invert" dangerouslySetInnerHTML={{ __html: marked(message.text) as string }}></div>;
+      : <div dangerouslySetInnerHTML={{ __html: marked(message.text) as string }}></div>;
 
     return (
-        <div className={`max-w-xs md:max-w-md lg:max-w-sm xl:max-w-md rounded-lg px-4 py-2 ${bubbleClass}`}>
+        <div className={bubbleClass}>
             {textContent}
         </div>
     );
@@ -51,34 +50,34 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ messages, isAiResponding, onSendM
     };
 
     return (
-        <div className="flex flex-col h-full bg-gray-800">
-            <div className="flex-1 p-4 overflow-y-auto flex flex-col space-y-4">
+        <div className="chat-panel-container">
+            <div className="messages-container">
                 {messages.map((msg) => (
                     <ChatBubble key={msg.id} message={msg} />
                 ))}
                 <div ref={messagesEndRef} />
             </div>
-            <div className="p-4 border-t border-gray-700">
-                <div className="flex space-x-2 mb-2">
-                    <button onClick={() => onAction('analyze')} disabled={isAiResponding} className="flex-1 flex items-center justify-center space-x-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-700/50 disabled:cursor-not-allowed text-sm py-2 px-3 rounded-lg transition-colors">
+            <div className="chat-input-area">
+                <div className="action-buttons">
+                    <button onClick={() => onAction('analyze')} disabled={isAiResponding} className="action-btn">
                         <ChartIcon className="w-4 h-4" />
                         <span>Analyser</span>
                     </button>
-                    <button onClick={() => onAction('propose')} disabled={isAiResponding} className="flex-1 flex items-center justify-center space-x-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-700/50 disabled:cursor-not-allowed text-sm py-2 px-3 rounded-lg transition-colors">
+                    <button onClick={() => onAction('propose')} disabled={isAiResponding} className="action-btn">
                         <LightbulbIcon className="w-4 h-4" />
                         <span>Proposer</span>
                     </button>
                 </div>
-                <form onSubmit={handleSend} className="flex items-center space-x-2">
+                <form onSubmit={handleSend} className="chat-form">
                     <input
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Posez votre question..."
-                        className="flex-1 bg-gray-700 border border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                        className="chat-input"
                         disabled={isAiResponding}
                     />
-                    <button type="submit" disabled={isAiResponding || !input.trim()} className="bg-cyan-600 hover:bg-cyan-500 disabled:bg-cyan-600/50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition-colors">
+                    <button type="submit" disabled={isAiResponding || !input.trim()} className="send-btn">
                         <SendIcon className="w-5 h-5" />
                     </button>
                 </form>

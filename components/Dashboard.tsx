@@ -13,9 +13,14 @@ import MarketChart from './MarketChart';
 import ChatPanel from './ChatPanel';
 import ReferralModal from './ReferralModal';
 import SubscribeScreen from './SubscribeScreen';
+import Login from './Login';
+import '../styles/Dashboard.css';
 
 const Dashboard: React.FC = () => {
     const { currentUser } = useAuth();
+    const [isGuest, setIsGuest] = useState(false);
+    const [showLogin, setShowLogin] = useState(false);
+
     const [symbol, setSymbol] = useState<string>('BTC/USD');
     const [marketData, setMarketData] = useState<MarketDataPoint[]>([]);
     const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
@@ -26,6 +31,14 @@ const Dashboard: React.FC = () => {
     const [isVerifiedSeller, setIsVerifiedSeller] = useState<boolean>(false);
 
     const { tokens, spendTokens, addTokens } = useTokenManager();
+
+    useEffect(() => {
+        if (!currentUser && !isGuest) {
+            setShowLogin(true);
+        } else {
+            setShowLogin(false);
+        }
+    }, [currentUser, isGuest]);
 
     useEffect(() => {
         if (!currentUser) return;
@@ -52,8 +65,9 @@ const Dashboard: React.FC = () => {
         });
     };
     
-    const handleNoTokens = () => {
-        addMessage('ai', "Vous n'avez pas assez de tokens pour cette action. Invitez des amis pour en gagner plus !");
+    const handleNoAuth = () => {
+        addMessage('ai', "Cette fonctionnalité nécessite un compte. Veuillez vous connecter ou vous inscrire.");
+        setShowLogin(true);
     };
 
     const fetchMarketData = useCallback((currentSymbol: string) => {
@@ -79,10 +93,14 @@ const Dashboard: React.FC = () => {
 
     const handleSendMessage = async (message: string) => {
         if (isAiResponding) return;
+        if (!currentUser) {
+            handleNoAuth();
+            return;
+        }
 
         const hasEnoughTokens = await spendTokens(TOKEN_COSTS.GENERAL_QUERY);
         if (!hasEnoughTokens) {
-            handleNoTokens();
+            addMessage('ai', "Vous n'avez pas assez de tokens. Invitez des amis pour en gagner !");
             return;
         }
 
@@ -97,13 +115,17 @@ const Dashboard: React.FC = () => {
     
     const handleAction = async (actionType: 'analyze' | 'propose') => {
         if (isAiResponding) return;
+        if (!currentUser) {
+            handleNoAuth();
+            return;
+        }
         
         const cost = actionType === 'analyze' ? TOKEN_COSTS.MARKET_ANALYSIS : TOKEN_COSTS.TRADE_PROPOSAL;
         const actionText = actionType === 'analyze' ? `Analyse du marché pour ${symbol}` : `Proposition de trade pour ${symbol}`;
 
         const hasEnoughTokens = await spendTokens(cost);
         if (!hasEnoughTokens) {
-            handleNoTokens();
+            addMessage('ai', "Vous n'avez pas assez de tokens. Invitez des amis pour en gagner !");
             return;
         }
 
@@ -119,26 +141,49 @@ const Dashboard: React.FC = () => {
         setIsAiResponding(false);
     };
 
+    const openReferralModal = () => {
+        if (!currentUser) {
+            handleNoAuth();
+            return;
+        }
+        setIsReferralModalOpen(true);
+    }
+
+    const openSubscribeScreen = () => {
+        if (!currentUser) {
+            handleNoAuth();
+            return;
+        }
+        setIsSubscribeScreenOpen(true);
+    }
+
     if (isSubscribeScreenOpen) {
         return <SubscribeScreen onClose={() => setIsSubscribeScreenOpen(false)} />;
     }
 
     return (
-        <div className="flex flex-col h-screen">
+        <div className="dashboard-container">
+             {showLogin && (
+                <div className="login-container">
+                   <Login onGuestMode={() => { setIsGuest(true); setShowLogin(false); }} />
+                </div>
+            )}
             <Header
+                isLoggedIn={!!currentUser}
                 tokens={tokens}
                 isVerifiedSeller={isVerifiedSeller}
-                onOpenReferral={() => setIsReferralModalOpen(true)}
-                onOpenSubscribe={() => setIsSubscribeScreenOpen(true)}
+                onOpenReferral={openReferralModal}
+                onOpenSubscribe={openSubscribeScreen}
+                onLogin={() => setShowLogin(true)}
                 currentSymbol={symbol}
                 onSymbolChange={handleSymbolChange}
                 symbols={MOCKED_SYMBOLS}
             />
-            <main className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 overflow-hidden">
-                <div className="lg:col-span-2 flex flex-col bg-gray-800 rounded-lg p-4">
+            <main className="main-content">
+                <div className="chart-container">
                     <MarketChart data={marketData} isLoading={isLoadingData} />
                 </div>
-                <div className="lg:col-span-1 flex flex-col bg-gray-800 rounded-lg overflow-hidden">
+                <div className="chat-container">
                     <ChatPanel
                         messages={messages}
                         isAiResponding={isAiResponding}
