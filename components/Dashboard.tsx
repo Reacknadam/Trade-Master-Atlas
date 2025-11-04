@@ -1,5 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { useAuth } from '../context/AuthContext';
 import { MarketDataPoint, ChatMessage } from '../types';
 import { TOKEN_COSTS, MOCKED_SYMBOLS } from '../constants';
 import { useTokenManager } from '../hooks/useTokenManager';
@@ -9,16 +12,33 @@ import Header from './Header';
 import MarketChart from './MarketChart';
 import ChatPanel from './ChatPanel';
 import ReferralModal from './ReferralModal';
+import SubscribeScreen from './SubscribeScreen';
 
 const Dashboard: React.FC = () => {
+    const { currentUser } = useAuth();
     const [symbol, setSymbol] = useState<string>('BTC/USD');
     const [marketData, setMarketData] = useState<MarketDataPoint[]>([]);
     const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isAiResponding, setIsAiResponding] = useState<boolean>(false);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+    const [isReferralModalOpen, setIsReferralModalOpen] = useState<boolean>(false);
+    const [isSubscribeScreenOpen, setIsSubscribeScreenOpen] = useState<boolean>(false);
+    const [isVerifiedSeller, setIsVerifiedSeller] = useState<boolean>(false);
 
     const { tokens, spendTokens, addTokens } = useTokenManager();
+
+    useEffect(() => {
+        if (!currentUser) return;
+
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const unsubscribe = onSnapshot(userDocRef, (doc) => {
+            if (doc.exists()) {
+                setIsVerifiedSeller(doc.data().isSellerVerified === true);
+            }
+        });
+
+        return () => unsubscribe();
+    }, [currentUser]);
 
     const addMessage = (sender: 'user' | 'ai', text: string, isLoading: boolean = false) => {
         setMessages(prev => [...prev, { id: Date.now().toString(), sender, text, isLoading }]);
@@ -51,8 +71,7 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         fetchMarketData(symbol);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [symbol]);
+    }, [symbol, fetchMarketData]);
 
     const handleSymbolChange = (newSymbol: string) => {
         setSymbol(newSymbol);
@@ -61,7 +80,8 @@ const Dashboard: React.FC = () => {
     const handleSendMessage = async (message: string) => {
         if (isAiResponding) return;
 
-        if (!spendTokens(TOKEN_COSTS.GENERAL_QUERY)) {
+        const hasEnoughTokens = await spendTokens(TOKEN_COSTS.GENERAL_QUERY);
+        if (!hasEnoughTokens) {
             handleNoTokens();
             return;
         }
@@ -81,7 +101,8 @@ const Dashboard: React.FC = () => {
         const cost = actionType === 'analyze' ? TOKEN_COSTS.MARKET_ANALYSIS : TOKEN_COSTS.TRADE_PROPOSAL;
         const actionText = actionType === 'analyze' ? `Analyse du marché pour ${symbol}` : `Proposition de trade pour ${symbol}`;
 
-        if (!spendTokens(cost)) {
+        const hasEnoughTokens = await spendTokens(cost);
+        if (!hasEnoughTokens) {
             handleNoTokens();
             return;
         }
@@ -98,11 +119,17 @@ const Dashboard: React.FC = () => {
         setIsAiResponding(false);
     };
 
+    if (isSubscribeScreenOpen) {
+        return <SubscribeScreen onClose={() => setIsSubscribeScreenOpen(false)} />;
+    }
+
     return (
         <div className="flex flex-col h-screen">
             <Header
                 tokens={tokens}
-                onOpenReferral={() => setIsModalOpen(true)}
+                isVerifiedSeller={isVerifiedSeller}
+                onOpenReferral={() => setIsReferralModalOpen(true)}
+                onOpenSubscribe={() => setIsSubscribeScreenOpen(true)}
                 currentSymbol={symbol}
                 onSymbolChange={handleSymbolChange}
                 symbols={MOCKED_SYMBOLS}
@@ -120,7 +147,7 @@ const Dashboard: React.FC = () => {
                     />
                 </div>
             </main>
-            <ReferralModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onReferralSuccess={addTokens} />
+            <ReferralModal isOpen={isReferralModalOpen} onClose={() => setIsReferralModalOpen(false)} onReferralSuccess={addTokens} />
         </div>
     );
 };
