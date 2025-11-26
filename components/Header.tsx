@@ -1,44 +1,69 @@
 
 import React from 'react';
-import { GemIcon, UserGroupIcon } from './icons';
+import { LogOut, Gem, Crown, LogIn } from 'lucide-react';
+import { auth } from '../services/firebase';
 
 interface HeaderProps {
+    isLoggedIn: boolean;
     tokens: number;
+    isVerifiedSeller: boolean;
     onOpenReferral: () => void;
+    onOpenSubscribe: () => void;
+    onLogin: () => void;
     currentSymbol: string;
     onSymbolChange: (symbol: string) => void;
     symbols: string[];
 }
 
-const Header: React.FC<HeaderProps> = ({ tokens, onOpenReferral, currentSymbol, onSymbolChange, symbols }) => {
+const Header: React.FC<HeaderProps> = ({
+    isLoggedIn,
+    tokens,
+    isVerifiedSeller,
+    onOpenReferral,
+    onOpenSubscribe,
+    onLogin,
+    currentSymbol,
+    onSymbolChange,
+    symbols
+}) => {
     return (
-        <header className="bg-gray-800 p-4 flex justify-between items-center border-b border-gray-700 shadow-md">
-            <div className="flex items-center space-x-4">
-                <h1 className="text-xl md:text-2xl font-bold text-cyan-400">
-                    <span className="hidden sm:inline">Atlas Trader AI</span>
-                    <span className="sm:hidden">Atlas AI</span>
-                </h1>
+        <header className="header">
+            <div className="header-left">
+                <h1 className="header-title">Atlas Trader AI</h1>
                 <select 
-                  value={currentSymbol}
-                  onChange={(e) => onSymbolChange(e.target.value)}
-                  className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block w-full p-2.5"
+                    value={currentSymbol}
+                    onChange={e => onSymbolChange(e.target.value)}
+                    className="symbol-select"
                 >
                     {symbols.map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
             </div>
-            <div className="flex items-center space-x-4">
-                <button 
-                    onClick={onOpenReferral}
-                    className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded-lg transition-colors duration-200 text-sm"
-                >
-                    <UserGroupIcon className="w-5 h-5" />
-                    <span className="hidden md:inline">Parrainage</span>
-                </button>
-                <div className="flex items-center space-x-2 bg-cyan-600/20 text-cyan-400 px-3 py-2 rounded-lg font-semibold">
-                    <GemIcon className="w-5 h-5 text-cyan-500" />
-                    <span>{tokens}</span>
-                    <span className="hidden md:inline">Tokens</span>
-                </div>
+            <div className="header-right">
+                {isLoggedIn ? (
+                    <>
+                        <button onClick={onOpenReferral} className="header-btn">
+                            Parrainage
+                        </button>
+                        <div className="token-display">
+                            <Gem size={16} color="#06b6d4" />
+                            <span>{tokens}</span>
+                        </div>
+                        {!isVerifiedSeller && (
+                            <button onClick={onOpenSubscribe} className="header-btn">
+                                <Crown size={16} />
+                                <span>Devenir Vendeur</span>
+                            </button>
+                        )}
+                        <button onClick={() => auth.signOut()} className="header-btn">
+                            <LogOut size={20}/>
+                        </button>
+                    </>
+                ) : (
+                    <button onClick={onLogin} className="header-btn">
+                        <LogIn size={16} />
+                        <span>Connexion / Inscription</span>
+                    </button>
+                )}
             </div>
         </header>
     );

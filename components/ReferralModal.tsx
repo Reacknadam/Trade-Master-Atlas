@@ -1,17 +1,32 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
+import { useAuth } from '../context/AuthContext';
 import { REFERRAL_BONUS } from '../constants';
 import { GemIcon } from './icons';
 
 interface ReferralModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onReferralSuccess: (amount: number) => void;
+    onReferralSuccess: (amount: number) => void; // This will be removed later
 }
 
-const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose, onReferralSuccess }) => {
-    const [referralCode, setReferralCode] = useState('ATLAS-TRADER-2024');
+const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose }) => {
+    const { currentUser } = useAuth();
+    const [referralCode, setReferralCode] = useState('Chargement...');
     const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        if (isOpen && currentUser) {
+            const userDocRef = doc(db, 'users', currentUser.uid);
+            getDoc(userDocRef).then(docSnap => {
+                if (docSnap.exists()) {
+                    setReferralCode(docSnap.data().referralCode);
+                }
+            });
+        }
+    }, [isOpen, currentUser]);
 
     if (!isOpen) return null;
 
@@ -21,20 +36,15 @@ const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose, onReferr
         setTimeout(() => setCopied(false), 2000);
     };
     
-    const handleClaimBonus = () => {
-        onReferralSuccess(REFERRAL_BONUS);
-        onClose();
-    };
-
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
             <div className="bg-gray-800 rounded-lg p-8 m-4 max-w-md w-full border border-gray-700 shadow-xl">
                 <h2 className="text-2xl font-bold text-cyan-400 mb-4">Programme de Parrainage</h2>
                 <p className="text-gray-400 mb-6">
-                    Invitez vos amis à utiliser Atlas Trader AI et recevez tous les deux des tokens bonus !
+                    Invitez vos amis avec votre code unique et recevez tous les deux des tokens bonus !
                 </p>
                 <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Votre lien de parrainage :</label>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Votre code de parrainage :</label>
                     <div className="flex">
                         <input
                             type="text"
@@ -57,13 +67,7 @@ const ReferralModal: React.FC<ReferralModalProps> = ({ isOpen, onClose, onReferr
                     </p>
                 </div>
                 
-                <div className="flex justify-end space-x-4">
-                     <button
-                        onClick={handleClaimBonus}
-                        className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-                    >
-                        Simuler un parrainage
-                    </button>
+                <div className="flex justify-end">
                     <button
                         onClick={onClose}
                         className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded-lg transition-colors"
